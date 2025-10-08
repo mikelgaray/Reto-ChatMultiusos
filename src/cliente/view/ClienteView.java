@@ -5,6 +5,9 @@ import java.awt.EventQueue;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+
+import cliente.cliente.ThreadClient;
+
 import javax.swing.JLabel;
 import java.awt.Font;
 import javax.swing.JButton;
@@ -15,7 +18,7 @@ import javax.swing.JTextPane;
 import javax.swing.JEditorPane;
 import javax.swing.JCheckBox;
 
-public class ClienteView extends JFrame {
+public class ClienteView extends JFrame implements ActionListener{
 
 	private static final long serialVersionUID = 1L;
 	private JPanel contentPane;
@@ -24,6 +27,8 @@ public class ClienteView extends JFrame {
 	private JTextField usuario;
 	private JTextField paraUno;
 	private JTextField paraDos;
+	private ThreadClient threadClient;
+
 
 	/**
 	 * Launch the application.
@@ -127,5 +132,11 @@ public class ClienteView extends JFrame {
 		enviarBoton.setBounds(449, 314, 84, 20);
 		contentPane.add(enviarBoton);
 
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+		threadClient = new ThreadClient(ip.getText(), Integer.parseInt(puerto.getText()), usuario.getText(), paraUno.getText(), paraDos.getText(), false);
 	}
 }
