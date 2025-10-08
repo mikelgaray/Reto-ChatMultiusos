@@ -12,6 +12,7 @@ public class Servidor {
 	public void iniciar() {
         //ServerSocket servidor = null;
         Socket cliente = null;
+        Contador contador = new Contador();
         ObjectInputStream entrada = null;
         ObjectOutputStream salida = null;
         int numeroCliente = 0;
@@ -23,8 +24,32 @@ public class Servidor {
                     
                     cliente = servidor.accept();
                     System.out.println("Cliente conectado: "+ cliente.getInetAddress().getHostAddress());
+                    
+                    //Añadir thead al cliente
+                    //Usuario nuevo se conecta mensaje público a todos los que estén conectados
+                    //Registrar acciones en el log.txt
+                    
+                    
+                    
+                    if (contador.conectarCliente()) {
+                    	/*numeroCliente++;
+						salida = new ObjectOutputStream(cliente.getOutputStream());
+						entrada = new ObjectInputStream(cliente.getInputStream());
+						salida.writeObject("Bienvenido al servidor. Eres el cliente número " + numeroCliente);
+						salida.flush();
+						//new AtenderClientes(cliente, contador).start();
+						new AtenderClientes(cliente, contador).start();*/
+					} else {
+						/*salida = new ObjectOutputStream(cliente.getOutputStream());
+						salida.writeObject("Servidor lleno. Inténtalo más tarde.");
+						salida.flush();
+						salida.close();
+						cliente.close();
+						System.out.println("Cliente rechazado: " + cliente.getInetAddress().getHostAddress());*/
+                    }
+                    
 
-                   //new AterederClientes(cliente).start();
+                   //new AtenderClientes(cliente).start();
                 } catch (Exception e) {
                     System.out.println("Error: " + e.getMessage());
                 }
