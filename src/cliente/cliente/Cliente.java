@@ -16,12 +16,6 @@ public class Cliente {
     private int puerto;
     private String nombreUsuario;
     
-    public Cliente(String ip, int puerto, String nombreUsuario) {
-        this.ip = ip;
-        this.puerto = puerto;
-        this.nombreUsuario = nombreUsuario;
-    }
-    
     public Cliente() {
         this.ip = "";
         this.puerto = 0;

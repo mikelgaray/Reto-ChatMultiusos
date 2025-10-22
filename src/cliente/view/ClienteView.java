@@ -130,7 +130,7 @@ public class ClienteView extends JFrame implements ActionListener{
 		usuario.setColumns(10);
 
 		editorPane = new JEditorPane();
-		editorPane.setBounds(-24, 84, 578, 217);
+		editorPane.setBounds(0, 84, 554, 217);
 		contentPane.add(editorPane);
 
 		privadoBoton = new JCheckBox("Privado");
@@ -200,39 +200,41 @@ public class ClienteView extends JFrame implements ActionListener{
 	 Actualizar la interfaz de forma segura (usando las herramientas adecuadas de Swing)*/
 
 	private void conectar() {
-        String ipClient = ip.getText();
-        int puertoClient = Integer.parseInt(puerto.getText());
-        String usuarioClient = usuario.getText();
+	    String ipClient = ip.getText();
+	    String puertoClient = puerto.getText(); 
+	    String usuarioClient = usuario.getText();
 
-        if (usuarioClient.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Debe ingresar un nombre de usuario");
-        } else {
-            try {
-                socket = new Socket(ipClient, puertoClient);
-                salida = new ObjectOutputStream(socket.getOutputStream());
-                entrada = new ObjectInputStream(socket.getInputStream());
+	    if (ipClient.isEmpty() || puertoClient.isEmpty() || usuarioClient.isEmpty()) {
+	        JOptionPane.showMessageDialog(this, "Debe ingresar IP, puerto y nombre de usuario");
+	    } else {
+	        try {
+	            // Convertimos el String a int solo en el momento de crear el socket
+	            int puertoInt = Integer.parseInt(puertoClient);
+	            socket = new Socket(ipClient, puertoInt); // aquí usamos el int
+	            salida = new ObjectOutputStream(socket.getOutputStream());
+	            entrada = new ObjectInputStream(socket.getInputStream());
 
-                // Enviar nombre de usuario al servidor
-                salida.writeObject(usuarioClient);
+	            // Enviar nombre de usuario al servidor
+	            salida.writeObject(usuarioClient);
 
-                conectado = true;
-                textoInvisible.setText("Conectado");
-                actualizarEstadoBotones(true);
+	            conectado = true;
+	            textoInvisible.setText("Conectado");
+	            actualizarEstadoBotones(true);
 
-                // Mostrar usuario en el editorPane
-                SwingUtilities.invokeLater(() -> {
-                    editorPane.setText("Usuario conectado: " + usuarioClient + "\n");
-                });
+	            // Mostrar usuario en el editorPane
+	            SwingUtilities.invokeLater(() -> {
+	                editorPane.setText("Usuario conectado: " + usuarioClient + "\n");
+	            });
 
-                // Iniciar hilo para escuchar mensajes del servidor
-                hiloLectura = new Thread(this::escucharMensajes);
-                hiloLectura.start();
+	            // Iniciar hilo para escuchar mensajes del servidor
+	            hiloLectura = new Thread(this::escucharMensajes);
+	            hiloLectura.start();
 
-            } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Error al conectar: " + ex.getMessage());
-            }
-        }
-    }
+	        } catch (IOException ex) {
+	            JOptionPane.showMessageDialog(this, ex.getMessage());
+	        }
+	    }
+	}
 
     private void desconectar() {
         try {
