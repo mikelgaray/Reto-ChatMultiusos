@@ -5,10 +5,28 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
+import cliente.view.ClienteView;
+
 public class Cliente {
     
     private final int PUERTO = 5000;
     private final String IP = "127.0.0.1";
+    
+    private String ip;
+    private int puerto;
+    private String nombreUsuario;
+    
+    public Cliente(String ip, int puerto, String nombreUsuario) {
+        this.ip = ip;
+        this.puerto = puerto;
+        this.nombreUsuario = nombreUsuario;
+    }
+    
+    public Cliente() {
+        this.ip = "";
+        this.puerto = 0;
+        this.nombreUsuario = "";
+    }
 
     public void iniciar() {
         Socket cliente = null;
@@ -42,10 +60,5 @@ public class Cliente {
             }
             System.out.println("Fin cliente");
         }
-    }
-
-    public static void main(String[] args) {
-        Cliente c = new Cliente();
-        c.iniciar();
     }
 }
