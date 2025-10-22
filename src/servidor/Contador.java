@@ -13,7 +13,6 @@ public class Contador {
         }
     }
 
-
     public synchronized void desconectarCliente() {
         if (clientesConectados > 0) {
             clientesConectados--;

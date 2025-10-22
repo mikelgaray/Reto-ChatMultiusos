@@ -7,72 +7,54 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class Servidor {
-	private final int PUERTO = 5000;
-	
-	public void iniciar() {
-        //ServerSocket servidor = null;
+    private final int PUERTO = 5000;
+    
+    public void iniciar() {
         Socket cliente = null;
         Contador contador = new Contador();
-        ObjectInputStream entrada = null;
-        ObjectOutputStream salida = null;
-        int numeroCliente = 0;
+        
         try (ServerSocket servidor = new ServerSocket(PUERTO)) {
-            System.out.println("Esperando conexiones del clientes...");
+            System.out.println("Servidor iniciado en puerto " + PUERTO);
+            System.out.println("Esperando conexiones de clientes...");
+            
             while (true) {
-
                 try {
-                    
                     cliente = servidor.accept();
-                    System.out.println("Cliente conectado: "+ cliente.getInetAddress().getHostAddress());
-                    
-                    //Añadir thead al cliente
-                    //Usuario nuevo se conecta mensaje público a todos los que estén conectados
-                    //Registrar acciones en el log.txt
+                    System.out.println("Cliente conectado: " + cliente.getInetAddress().getHostAddress());
                     
                     
+                    ObjectOutputStream salida = new ObjectOutputStream(cliente.getOutputStream());
+                    ObjectInputStream entrada = new ObjectInputStream(cliente.getInputStream());
                     
+                    // Verificar si hay espacio para más clientes
                     if (contador.conectarCliente()) {
-                    	/*numeroCliente++;
-						salida = new ObjectOutputStream(cliente.getOutputStream());
-						entrada = new ObjectInputStream(cliente.getInputStream());
-						salida.writeObject("Bienvenido al servidor. Eres el cliente número " + numeroCliente);
-						salida.flush();
-						//new AtenderClientes(cliente, contador).start();
-						new AtenderClientes(cliente, contador).start();*/
-					} else {
-						/*salida = new ObjectOutputStream(cliente.getOutputStream());
-						salida.writeObject("Servidor lleno. Inténtalo más tarde.");
-						salida.flush();
-						salida.close();
-						cliente.close();
-						System.out.println("Cliente rechazado: " + cliente.getInetAddress().getHostAddress());*/
+                        // Cliente aceptado
+                        int numeroCliente = contador.getClientesConectados();
+                        salida.writeObject("Bienvenido al servidor. Eres el cliente número " + numeroCliente);
+                        salida.flush();
+                        
+                        System.out.println("Cliente aceptado. Total: " + numeroCliente);
+                        
+                        // Crear hilo para atender al cliente
+                        new AtenderClientes(cliente, contador, entrada, salida).start();
+                        
+                    } else {
+                        // Servidor lleno - rechazar cliente
+                        salida.writeObject("Servidor lleno. Máximo 5 clientes. Inténtalo más tarde.");
+                        salida.flush();
+                        salida.close();
+                        cliente.close();
+                        System.out.println("Cliente rechazado - Servidor lleno: " + cliente.getInetAddress().getHostAddress());
                     }
                     
-
-                   //new AtenderClientes(cliente).start();
                 } catch (Exception e) {
-                    System.out.println("Error: " + e.getMessage());
+                    System.out.println("Error con cliente: " + e.getMessage());
                 }
             }
-
+            
         } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (entrada != null) {
-                    entrada.close();
-                }
-                if (salida != null) {
-                    salida.close();
-                }
-                if (cliente != null) {
-                    cliente.close();
-                }
-            } catch (Exception e) {
-                System.out.println("Error: " + e.getMessage());
-            }
+            System.out.println("Error en servidor: " + e.getMessage());
         }
-
     }
 
     public static void main(String[] args) {
