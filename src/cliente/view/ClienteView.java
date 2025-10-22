@@ -110,11 +110,13 @@ public class ClienteView extends JFrame implements ActionListener{
 		contentPane.add(desconectarBoton);
 
 		ip = new JTextField();
+		ip.setText("127.0.0.1");
 		ip.setBounds(34, 8, 50, 18);
 		contentPane.add(ip);
 		ip.setColumns(10);
 
 		puerto = new JTextField();
+		puerto.setText("5000");
 		puerto.setColumns(10);
 		puerto.setBounds(140, 8, 50, 18);
 		contentPane.add(puerto);
