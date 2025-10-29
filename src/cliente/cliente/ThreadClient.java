@@ -1,24 +1,44 @@
 package cliente.cliente;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+
+import javax.swing.SwingUtilities;
+
+import cliente.view.ClienteView;
+
 public class ThreadClient implements Runnable {
-	private String ip;
-	private int puerto;
-	private String usuario;
+    private ObjectInputStream entrada;
+    private ClienteView ui;
+    private volatile boolean activo = true;
 
-	public ThreadClient(String ip, int puerto, String usuario) {
-		this.ip = ip;
-		this.puerto = puerto;
-		this.usuario = usuario;
-	}
+    public ThreadClient(ObjectInputStream entrada, ClienteView ui) {
+        this.entrada = entrada;
+        this.ui = ui;
+    }
 
-	@Override
-	public void run() {
-		// Aquí va la lógica que se ejecutará en el hilo
-		System.out.println("Conectando a " + ip + ":" + puerto);
-		System.out.println("Usuario: " + usuario);
-		
-		// Lógica de conexión y comunicación con el servidor
-		// ...
-	}
+    public void detener() {
+        activo = false;
+        try {
+            if (entrada != null) entrada.close();
+        } catch (IOException e) {
+        	System.out.println("Error" +e);
+        }
+    }
 
+    @Override
+    public void run() {
+        try {
+            Object mensaje;
+            while (activo && (mensaje = entrada.readObject()) != null) {
+                final String msg = mensaje.toString();
+                SwingUtilities.invokeLater(() -> ui.mostrarMensaje(msg));
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            if (activo) {
+                SwingUtilities.invokeLater(() -> ui.mostrarMensaje("[Sistema] Conexión cerrada."));
+            }
+        }
+    }
 }

@@ -5,6 +5,8 @@ import java.awt.EventQueue;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 import cliente.cliente.ThreadClient;
 
@@ -15,7 +17,9 @@ import java.awt.Font;
 import javax.swing.JButton;
 import javax.swing.JTextField;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -154,6 +158,23 @@ public class ClienteView extends JFrame implements ActionListener{
 		paraDos.setBounds(199, 315, 240, 18);
 		contentPane.add(paraDos);
 		paraDos.setColumns(10);
+		
+		paraDos.getDocument().addDocumentListener(new DocumentListener() {
+		    @Override
+		    public void insertUpdate(DocumentEvent e) {
+		        actualizarEstadoBotones(conectado);
+		    }
+
+		    @Override
+		    public void removeUpdate(DocumentEvent e) {
+		        actualizarEstadoBotones(conectado);
+		    }
+
+		    @Override
+		    public void changedUpdate(DocumentEvent e) {
+		        actualizarEstadoBotones(conectado);
+		    }
+		});
 
 		enviarBoton = new JButton("Enviar");
 		enviarBoton.setBounds(449, 314, 84, 20);
@@ -203,89 +224,104 @@ public class ClienteView extends JFrame implements ActionListener{
 
 	private void conectar() {
 	    String ipClient = ip.getText();
-	    String puertoClient = puerto.getText(); 
+	    String puertoClient = puerto.getText();
 	    String usuarioClient = usuario.getText();
 
 	    if (ipClient.isEmpty() || puertoClient.isEmpty() || usuarioClient.isEmpty()) {
 	        JOptionPane.showMessageDialog(this, "Debe ingresar IP, puerto y nombre de usuario");
-	    } else {
-	        try {
-	            // Convertimos el String a int solo en el momento de crear el socket
-	            int puertoInt = Integer.parseInt(puertoClient);
-	            socket = new Socket(ipClient, puertoInt); // aquí usamos el int
-	            salida = new ObjectOutputStream(socket.getOutputStream());
-	            entrada = new ObjectInputStream(socket.getInputStream());
+	        return;
+	    }
 
-	            // Enviar nombre de usuario al servidor
-	            salida.writeObject(usuarioClient);
+	    try {
+	        int puertoInt = Integer.parseInt(puertoClient);
+	        socket = new Socket(ipClient, puertoInt);
 
-	            conectado = true;
-	            textoInvisible.setText("Conectado");
-	            actualizarEstadoBotones(true);
+	        salida = new ObjectOutputStream(socket.getOutputStream());
+	        entrada = new ObjectInputStream(socket.getInputStream());
 
-	            // Mostrar usuario en el editorPane
-	            SwingUtilities.invokeLater(() -> {
-	                editorPane.setText("Usuario conectado: " + usuarioClient + "\n");
-	            });
+	        salida.writeObject(usuarioClient);
+	        salida.flush();
 
-	            // Iniciar hilo para escuchar mensajes del servidor
-	            hiloLectura = new Thread(this::escucharMensajes);
-	            hiloLectura.start();
+	        conectado = true;
+	        textoInvisible.setText("Conectado");
+	        actualizarEstadoBotones(true);
 
-	        } catch (IOException ex) {
-	            JOptionPane.showMessageDialog(this, ex.getMessage());
-	        }
+	        editorPane.setText("Usuario conectado: " + usuarioClient + "\n");
+
+	        // Iniciar hilo de escucha
+	        threadClient = new ThreadClient(entrada, this);
+	        hiloLectura = new Thread(threadClient);
+	        hiloLectura.start();
+
+	    } catch (IOException | NumberFormatException ex) {
+	        JOptionPane.showMessageDialog(this, "Error al conectar: " + ex.getMessage());
 	    }
 	}
 
-    private void desconectar() {
-        try {
-            if (conectado && salida != null) {
-                salida.writeObject("/salir");
-            }
-            conectado = false;
-            if (socket != null) socket.close();
-            textoInvisible.setText("Desconectado");
-            actualizarEstadoBotones(false);
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "Error al desconectar: " + ex.getMessage());
-        }
-    }
+	private void desconectar() {
+	    try {
+	        if (conectado && salida != null) {
+	            salida.writeObject("/salir");
+	            salida.flush();
+	        }
+
+	        conectado = false;
+	        textoInvisible.setText("Desconectado");
+	        actualizarEstadoBotones(false);
+
+	        if (threadClient != null) {
+	            threadClient.detener();
+	        }
+
+	        if (hiloLectura != null && hiloLectura.isAlive()) {
+	            hiloLectura.interrupt();
+	        }
+
+	        if (socket != null && !socket.isClosed()) {
+	            socket.close();
+	        }
+
+	        agregarMensaje("[Sistema] Desconectado del servidor.");
+
+	    } catch (IOException ex) {
+	        JOptionPane.showMessageDialog(this, "Error al desconectar: " + ex.getMessage());
+	    }
+	}
 
     private void enviarMensaje() {
         if (!conectado) return;
+
         try {
             String mensaje = paraDos.getText();
+            if (mensaje.isEmpty()) return;
+
             if (privadoBoton.isSelected()) {
                 String destinatario = paraUno.getText();
                 if (!destinatario.isEmpty()) {
-                    salida.writeObject("/privado " + destinatario + " " + mensaje);
+                    salida.writeObject("PRIVADO|" + usuario.getText() + "|" + destinatario + "|" + mensaje);
                     agregarMensaje("Yo (privado a " + destinatario + "): " + mensaje);
                 }
             } else {
-                salida.writeObject("/publico " + mensaje);
+                salida.writeObject("PUBLICO|" + usuario.getText() + "|" + mensaje);
                 agregarMensaje("Yo (público): " + mensaje);
             }
+
+            salida.flush();
             paraDos.setText("");
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Error al enviar mensaje: " + ex.getMessage());
         }
     }
 
-    private void escucharMensajes() {
-        try {
-            while (conectado) {
-                Object recibido = entrada.readObject();
-                if (recibido instanceof String) {
-                    String mensaje = (String) recibido;
-                    agregarMensaje(mensaje);
-                }
-            }
-        } catch (IOException | ClassNotFoundException e) {
-            if (conectado) {
-                JOptionPane.showMessageDialog(this, "Conexión perdida con el servidor.");
-                desconectar();
-            }
+    public void mostrarMensaje(String msg) {
+        if (msg.startsWith("PUBLICO|")) {
+            String[] partes = msg.split("\\|", 3);
+            agregarMensaje("[Público] " + partes[1] + ": " + partes[2]);
+        } else if (msg.startsWith("PRIVADO|")) {
+            String[] partes = msg.split("\\|", 3);
+            agregarMensaje("[Privado] " + partes[1] + ": " + partes[2]);
+        } else {
+            agregarMensaje("[Sistema] " + msg);
         }
     }
 
