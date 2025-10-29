@@ -34,6 +34,7 @@ public class AtenderClientes extends Thread {
 
             System.out.println("Usuario conectado: " + nombreUsuario);
             enviarATodos("PUBLICO|Servidor|El usuario " + nombreUsuario + " se ha unido al chat");
+            enviarATodos("PUBLICO|Servidor|Usuarios Conectados: " + clientesConectados.size() + "");
 
             Object mensaje;
             while ((mensaje = entrada.readObject()) != null) {
@@ -92,7 +93,7 @@ public class AtenderClientes extends Thread {
         }
     }
 
-    private void desconectar() {
+  private void desconectar() {
         try {
             synchronized (clientesConectados) {
                 clientesConectados.remove(this);
