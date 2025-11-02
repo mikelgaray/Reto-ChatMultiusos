@@ -12,6 +12,7 @@ import cliente.cliente.ThreadClient;
 
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JScrollPane;
 
 import java.awt.Font;
 import javax.swing.JButton;
@@ -57,6 +58,7 @@ public class ClienteView extends JFrame implements ActionListener{
 	private JCheckBox privadoBoton;
 	private JLabel paraText;
 	private JButton enviarBoton;
+	private JScrollPane scrollPane;
 
 
 	/**
@@ -136,8 +138,13 @@ public class ClienteView extends JFrame implements ActionListener{
 		usuario.setColumns(10);
 
 		editorPane = new JEditorPane();
-		editorPane.setBounds(0, 84, 554, 217);
-		contentPane.add(editorPane);
+		editorPane.setEditable(false);
+		
+		scrollPane = new JScrollPane(editorPane);
+		scrollPane.setBounds(0, 84, 554, 217);
+		scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+		scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+		contentPane.add(scrollPane);
 
 		privadoBoton = new JCheckBox("Privado");
 		privadoBoton.setFont(new Font("Tahoma", Font.BOLD, 13));
@@ -247,8 +254,6 @@ public class ClienteView extends JFrame implements ActionListener{
 	        actualizarEstadoBotones(true);
 
 	        editorPane.setText("Usuario conectado: " + usuarioClient + "\n");
-
-	        // Iniciar hilo de escucha
 	        threadClient = new ThreadClient(entrada, this);
 	        hiloLectura = new Thread(threadClient);
 	        hiloLectura.start();
@@ -281,7 +286,7 @@ public class ClienteView extends JFrame implements ActionListener{
 	            socket.close();
 	        }
 
-	        agregarMensaje("[Sistema] Desconectado del servidor.");
+	        agregarMensaje("Desconectado del servidor.");
 
 	    } catch (IOException ex) {
 	        JOptionPane.showMessageDialog(this, "Error al desconectar: " + ex.getMessage());
@@ -328,6 +333,7 @@ public class ClienteView extends JFrame implements ActionListener{
     private void agregarMensaje(String mensaje) {
         SwingUtilities.invokeLater(() -> {
             editorPane.setText(editorPane.getText() + mensaje + "\n");
+            editorPane.setCaretPosition(editorPane.getDocument().getLength());
         });
     }
 
