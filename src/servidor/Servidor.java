@@ -10,28 +10,45 @@ import java.util.Collections;
 import java.util.List;
 
 public class Servidor {
+
     private final int PUERTO = 5000;
-    private static final int MAX_CLIENTES = 5;
-    private static final List<AtenderClientes> clientesConectados = Collections.synchronizedList(new ArrayList<>());
+
+    // Controla cuántos clientes pueden conectarse (según tus preferencias)
+    private Contador contador = new Contador();
+
+    /* Lista sincronizada para almacenar los clientes conectados
+     * ArrayList NO es seguro para hilos. Si 2 hilos modifican la lista a la vez se puede corromper, lanzar errores o perder datos.
+     */
+    private List<AtenderClientes> clientesConectados = Collections.synchronizedList(new ArrayList<>());
 
     public void iniciar() {
         try (ServerSocket servidor = new ServerSocket(PUERTO)) {
+
             System.out.println("Servidor iniciado en puerto " + PUERTO);
 
+            // Aceptamos clientes indefinidamente
             while (true) {
-                Socket cliente = servidor.accept();
-                System.out.println("Cliente conectado desde: " + cliente.getInetAddress().getHostAddress());
+                Socket socketCliente = servidor.accept();
+                System.out.println("Cliente intentando conectar desde: "
+                        + socketCliente.getInetAddress().getHostAddress());
 
-                if (clientesConectados.size() >= MAX_CLIENTES) {
-                    ObjectOutputStream salida = new ObjectOutputStream(cliente.getOutputStream());
-                    salida.writeObject("Servidor lleno. Máximo " + MAX_CLIENTES + " clientes.");
+                /* Consultamos al contador si todavía hay espacio.
+                   Si el servidor está lleno, enviamos mensaje y cerramos. */
+                if (!contador.conectarCliente()) {
+                    ObjectOutputStream salida = new ObjectOutputStream(socketCliente.getOutputStream());
+                    salida.writeObject("Servidor lleno. Máximo 5 clientes.");
                     salida.flush();
-                    cliente.close();
+                    socketCliente.close();
+                    System.out.println("Cliente rechazado. Servidor lleno.");
                     continue;
                 }
 
-                AtenderClientes hilo = new AtenderClientes(cliente, clientesConectados);
-                hilo.start();
+                /* Creamos el hilo que gestionará a ese cliente.
+                   Se le pasa el socket y la lista de clientes conectados. */
+                AtenderClientes hiloCliente = new AtenderClientes(socketCliente, clientesConectados);
+                hiloCliente.start();
+
+                System.out.println("Cliente aceptado. Clientes conectados: " + contador.getClientesConectados());
             }
 
         } catch (IOException e) {
