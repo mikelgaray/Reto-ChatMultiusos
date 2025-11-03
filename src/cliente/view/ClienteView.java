@@ -7,9 +7,6 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-
-import cliente.cliente.ThreadClient;
-
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
@@ -153,12 +150,15 @@ public class ClienteView extends JFrame implements ActionListener{
 		paraUno.setBounds(130, 315, 60, 18);
 		contentPane.add(paraUno);
 		paraUno.setColumns(10);
+		
+		paraUno.setEnabled(false);
 
 		paraDos = new JTextField();
 		paraDos.setBounds(199, 315, 240, 18);
 		contentPane.add(paraDos);
 		paraDos.setColumns(10);
 		
+		// Listener para habilitar botón enviar cada vez que se escribe
 		paraDos.getDocument().addDocumentListener(new DocumentListener() {
 		    @Override
 		    public void insertUpdate(DocumentEvent e) {
@@ -184,135 +184,156 @@ public class ClienteView extends JFrame implements ActionListener{
 		desconectarBoton.addActionListener(this);
 		enviarBoton.addActionListener(this);
 		privadoBoton.addActionListener(this);
+		
+		actualizarEstadoBotones(false);
 
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		// TODO Auto-generated method stub
-
-		/*Cuando los labels ip, puerto y usuario estén vacíos, los botones conectar, desconectar y enviar estarán deshabilitados
-		 * Cuando labels ip, puerto y usuario estén llenos, se habilitará el botón conectar. 
-		 * Hasta que no le des al botón conectar, el label texto invisible saldrá como no conectado
-		 * El botón de enviar será habilitado cuando esté lleno el label paraDos.
-		 * Aparecerá toda la información del usurio en el editor pane
-		 * Cuando el botón privado no esté seleccionado, el mensaje se enviará a todos los usuarios conectados, inhabilitando el label paraUno
-		 * Cuando el botón privado esté seleccionado, se habilitará el label paraUno, y el mensaje será enviado a solo ese user. 
-		 */
-		
 		if (e.getSource() == conectarBoton) {
-			conectar();
-		} else if (e.getSource() == desconectarBoton) {
-			desconectar();
-		} else if (e.getSource() == enviarBoton) {
-			enviarMensaje();
-		} else if (e.getSource() == privadoBoton) {
-			paraUno.setEnabled(privadoBoton.isSelected());
-		}
-
+            conectar();
+        } else if (e.getSource() == desconectarBoton) {
+            desconectar();
+        } else if (e.getSource() == enviarBoton) {
+            enviarMensaje();
+        } else if (e.getSource() == privadoBoton) {
+            // Activamos el campo destinatario solo si el mensaje es privado
+            paraUno.setEnabled(privadoBoton.isSelected());
+        }
 	}
 
 
-	/*Permitir configurar IP y puerto del servidor.
-	 Mostrar siempre el nombre de usuario.
-	 Conectar y desconectar el cliente del servidor.
-	 Enviar mensajes públicos y privados.
-	 Mostrar los mensajes recibidos indicando claramente el emisor y si son públicos o privados.
-	 Mantener la recepción de mensajes en un hilo independiente al envío, de forma que la interfaz
-	nunca se bloquee.
-	 Actualizar la interfaz de forma segura (usando las herramientas adecuadas de Swing)*/
-
+    //Intenta conectar al servidor, validando antes los datos.
 	private void conectar() {
 	    String ipClient = ip.getText();
 	    String puertoClient = puerto.getText();
 	    String usuarioClient = usuario.getText();
 
+	    boolean datosValidos = true;
+
 	    if (ipClient.isEmpty() || puertoClient.isEmpty() || usuarioClient.isEmpty()) {
 	        JOptionPane.showMessageDialog(this, "Debe ingresar IP, puerto y nombre de usuario");
-	        return;
+	        datosValidos = false;
 	    }
 
-	    try {
-	        int puertoInt = Integer.parseInt(puertoClient);
-	        socket = new Socket(ipClient, puertoInt);
+	    if (datosValidos) {
+	        try {
+	            int puertoInt = Integer.parseInt(puertoClient);
+	            socket = new Socket(ipClient, puertoInt);
 
-	        salida = new ObjectOutputStream(socket.getOutputStream());
-	        entrada = new ObjectInputStream(socket.getInputStream());
+	            salida = new ObjectOutputStream(socket.getOutputStream());
+	            entrada = new ObjectInputStream(socket.getInputStream());
 
-	        salida.writeObject(usuarioClient);
-	        salida.flush();
-
-	        conectado = true;
-	        textoInvisible.setText("Conectado");
-	        actualizarEstadoBotones(true);
-
-	        editorPane.setText("Usuario conectado: " + usuarioClient + "\n");
-
-	        // Iniciar hilo de escucha
-	        threadClient = new ThreadClient(entrada, this);
-	        hiloLectura = new Thread(threadClient);
-	        hiloLectura.start();
-
-	    } catch (IOException | NumberFormatException ex) {
-	        JOptionPane.showMessageDialog(this, "Error al conectar: " + ex.getMessage());
-	    }
-	}
-
-	private void desconectar() {
-	    try {
-	        if (conectado && salida != null) {
-	            salida.writeObject("/salir");
+	            salida.writeObject(usuarioClient);
 	            salida.flush();
+
+	            conectado = true;
+	            textoInvisible.setText("Conectado");
+	            actualizarEstadoBotones(true);
+
+	            editorPane.setText("Usuario conectado: " + usuarioClient + "\n");
+
+	            threadClient = new ThreadClient(entrada, this);
+	            hiloLectura = new Thread(threadClient);
+	            hiloLectura.start();
+
+	        } catch (IOException | NumberFormatException ex) {
+	            JOptionPane.showMessageDialog(this, "Error al conectar: " + ex.getMessage());
 	        }
-
-	        conectado = false;
-	        textoInvisible.setText("Desconectado");
-	        actualizarEstadoBotones(false);
-
-	        if (threadClient != null) {
-	            threadClient.detener();
-	        }
-
-	        if (hiloLectura != null && hiloLectura.isAlive()) {
-	            hiloLectura.interrupt();
-	        }
-
-	        if (socket != null && !socket.isClosed()) {
-	            socket.close();
-	        }
-
-	        agregarMensaje("[Sistema] Desconectado del servidor.");
-
-	    } catch (IOException ex) {
-	        JOptionPane.showMessageDialog(this, "Error al desconectar: " + ex.getMessage());
 	    }
 	}
 
-    private void enviarMensaje() {
-        if (!conectado) return;
+	/**
+     * Envía un comando al servidor para desconectar el usuario.
+     * También detiene el hilo de lectura y cierra los recursos.
+     */
+	private void desconectar() {
 
-        try {
-            String mensaje = paraDos.getText();
-            if (mensaje.isEmpty()) return;
+        boolean desconexionCorrecta = true;
 
-            if (privadoBoton.isSelected()) {
-                String destinatario = paraUno.getText();
-                if (!destinatario.isEmpty()) {
-                    salida.writeObject("PRIVADO|" + usuario.getText() + "|" + destinatario + "|" + mensaje);
-                    agregarMensaje("Yo (privado a " + destinatario + "): " + mensaje);
-                }
-            } else {
-                salida.writeObject("PUBLICO|" + usuario.getText() + "|" + mensaje);
-                agregarMensaje("Yo (público): " + mensaje);
+        // Enviamos el mensaje /salir al servidor, si estamos conectados
+        if (conectado && salida != null) {
+            try {
+                salida.writeObject("/salir");
+                salida.flush();
+            } catch (IOException e) {
+                desconexionCorrecta = false;
+                JOptionPane.showMessageDialog(this, "Error al enviar comando de salida");
+            }
+        }
+
+        if (desconexionCorrecta) {
+            // Cambiamos estado del cliente
+            conectado = false;
+            textoInvisible.setText("Desconectado");
+            actualizarEstadoBotones(false);
+
+            // Detenemos hilo de lectura
+            if (threadClient != null) {
+                threadClient.detener();
             }
 
-            salida.flush();
-            paraDos.setText("");
-        } catch (IOException ex) {
-            JOptionPane.showMessageDialog(this, "Error al enviar mensaje: " + ex.getMessage());
+            if (hiloLectura != null && hiloLectura.isAlive()) {
+                hiloLectura.interrupt();
+            }
+
+            // Cerramos el socket
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Error al cerrar conexión: " + e.getMessage());
+            }
+
+            agregarMensaje("[Sistema] Desconectado del servidor.");
         }
     }
 
+	//Envía un mensaje al servidor, público o privado según selección del usuario.
+	private void enviarMensaje() {
+
+        boolean mensajeValido = true;
+
+        // Validamos que estemos conectados
+        if (!conectado) {
+            mensajeValido = false;
+        }
+
+        // Validamos que el mensaje no esté vacío
+        String mensaje = paraDos.getText();
+        if (mensaje.isEmpty()) {
+            mensajeValido = false;
+        }
+
+        if (mensajeValido) {
+            try {
+                // Si el mensaje es privado, añadimos destinatario
+                if (privadoBoton.isSelected()) {
+                    String destinatario = paraUno.getText();
+                    if (!destinatario.isEmpty()) {
+                        salida.writeObject("PRIVADO|" + usuario.getText() + "|" + destinatario + "|" + mensaje);
+                        agregarMensaje("Yo (privado a " + destinatario + "): " + mensaje);
+                    }
+                } else {
+                    // Mensaje público
+                    salida.writeObject("PUBLICO|" + usuario.getText() + "|" + mensaje);
+                    agregarMensaje("Yo (público): " + mensaje);
+                }
+
+                salida.flush();
+                paraDos.setText("");
+
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error al enviar mensaje: " + ex.getMessage());
+            }
+        }
+    }
+
+	/*Muestra los mensajes recibidos en el editorPane, indicando si son públicos o privados.
+	 * Su función es interpretar el mensaje recibido desde el servidor y decidir cómo mostrarlo.
+	 */
     public void mostrarMensaje(String msg) {
         if (msg.startsWith("PUBLICO|")) {
             String[] partes = msg.split("\\|", 3);
@@ -325,12 +346,14 @@ public class ClienteView extends JFrame implements ActionListener{
         }
     }
 
+    //Añade texto al editorPane sin borrar lo anterior.
     private void agregarMensaje(String mensaje) {
         SwingUtilities.invokeLater(() -> {
             editorPane.setText(editorPane.getText() + mensaje + "\n");
         });
     }
 
+    //Activa o desactiva botones e inputs según el estado de conexión.
     private void actualizarEstadoBotones(boolean conectado) {
         conectarBoton.setEnabled(!conectado);
         desconectarBoton.setEnabled(conectado);
