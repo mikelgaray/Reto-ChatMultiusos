@@ -1,0 +1,18 @@
+Para iniciar la aplicación, primero se debe ejecutar el servidor haciendo clic derecho sobre el archivo correspondiente y seleccionando Run As → Java Application. 
+A continuación, para ejecutar los clientes, se hace clic derecho sobre el archivo clientView y se selecciona igualmente Run As → Java Application.
+
+Una vez iniciados, es necesario rellenar los campos de IP y puerto en caso de no utilizar los valores por defecto. Después, se introduce el nombre de usuario deseado y se pulsa el botón Conectar.
+
+1. Si hay menos de 5 usuarios conectados, la conexión se establecerá correctamente.
+
+2. Si ya hay 5 usuarios conectados, aparecerá un mensaje de error indicando que se ha alcanzado el máximo permitido.
+
+Cuando la conexión es exitosa, se mostrará un mensaje de confirmación junto con el número de usuarios conectados.
+
+En la parte inferior de la ventana se encuentran los apartados de mensajes, que pueden ser públicos o privados, según la opción seleccionada:
+
+1. Si se marca la casilla de privado, es necesario indicar el nombre del destinatario en el campo pequeño y escribir el mensaje en el campo grande. Ese mensaje llegará únicamente al usuario especificado.
+
+2. Si no se selecciona la casilla de privado, el mensaje se enviará a todos los usuarios conectados.
+
+Para desconectarse basta con pulsar el botón Desconectar, lo que mostrará un mensaje de salida. En caso de intentar reconectarse cuando ya hay 5 usuarios conectados, se mostrará un error, ya que ese es el número máximo de conexiones permitidas.
