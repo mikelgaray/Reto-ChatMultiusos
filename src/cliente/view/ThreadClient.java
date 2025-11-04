@@ -20,14 +20,11 @@ public class ThreadClient implements Runnable {
         this.ui = ui;
     }
 
-    // Método para detener el hilo de forma segura.
     public void detener() {
         boolean cierreCorrecto = true;
 
-        // Marcamos que el hilo debe dejar de escuchar
         activo = false;
 
-        // Cerramos el stream de entrada si es posible
         try {
             if (entrada != null) {
                 entrada.close();
@@ -50,27 +47,20 @@ public class ThreadClient implements Runnable {
     public void run() {
 
         try {
-            // Bucle de escucha: sigue hasta que "activo" sea false o ocurra error
             while (activo) {
 
                 Object mensajeRecibido = entrada.readObject();
 
                 if (mensajeRecibido != null) {
-                    // Convertimos a String para mostrarlo
                     String msg = mensajeRecibido.toString();
-
-                    // Actualizamos la UI desde el hilo de Swing
                     SwingUtilities.invokeLater(() -> ui.mostrarMensaje(msg));
 
                 } else {
-                    // Si el servidor envía null, paramos la escucha
                     activo = false;
                 }
             }
 
         } catch (IOException | ClassNotFoundException e) {
-
-            // Si el hilo sigue “activo”, significa que NO fue una desconexión deseada
             if (activo) {
                 SwingUtilities.invokeLater(() ->
                         ui.mostrarMensaje("[Sistema] Se perdió la conexión con el servidor.")

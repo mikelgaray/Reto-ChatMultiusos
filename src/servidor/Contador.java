@@ -19,9 +19,9 @@ public class Contador {
 
         if (clientesConectados < LIMITE) {
             clientesConectados++;
-            puedeConectar = true;   // Se marca como conexión exitosa
+            puedeConectar = true;
         } 
-        // Si no se cumple el if, simplemente queda como false
+
 
         return puedeConectar;
     }
@@ -35,7 +35,7 @@ public class Contador {
 
         if (clientesConectados > 0) {
             clientesConectados--;
-            desconectado = true;  // Se marcó desconexión válida
+            desconectado = true;
         }
 
         return desconectado;

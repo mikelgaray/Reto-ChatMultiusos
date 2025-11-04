@@ -165,7 +165,6 @@ public class ClienteView extends JFrame implements ActionListener{
 		contentPane.add(paraDos);
 		paraDos.setColumns(10);
 		
-		// Listener para habilitar botón enviar cada vez que se escribe
 		paraDos.getDocument().addDocumentListener(new DocumentListener() {
 		    @Override
 		    public void insertUpdate(DocumentEvent e) {
@@ -205,13 +204,13 @@ public class ClienteView extends JFrame implements ActionListener{
         } else if (e.getSource() == enviarBoton) {
             enviarMensaje();
         } else if (e.getSource() == privadoBoton) {
-            // Activamos el campo destinatario solo si el mensaje es privado
+
             paraUno.setEnabled(privadoBoton.isSelected());
         }
 	}
 
 
-	 //Intenta conectar al servidor, validando antes los datos.
+
 		private void conectar() {
 		    String ipClient = ip.getText();
 		    String puertoClient = puerto.getText();
@@ -256,59 +255,47 @@ public class ClienteView extends JFrame implements ActionListener{
 	     * También detiene el hilo de lectura y cierra los recursos.
 	     */
 		private void desconectar() {
+		    try {
+		        if (conectado && salida != null) {
+		            salida.writeObject("/salir");
+		            salida.flush();
+		        }
 
-	        boolean desconexionCorrecta = true;
+		        conectado = false;
+		        textoInvisible.setText("Desconectado");
+		        actualizarEstadoBotones(false);
 
-	        // Enviamos el mensaje /salir al servidor, si estamos conectados
-	        if (conectado && salida != null) {
-	            try {
-	                salida.writeObject("/salir");
-	                salida.flush();
-	            } catch (IOException e) {
-	                desconexionCorrecta = false;
-	                JOptionPane.showMessageDialog(this, "Error al enviar comando de salida");
-	            }
-	        }
+		        if (threadClient != null) {
+		            threadClient.detener();
+		        }
 
-	        if (desconexionCorrecta) {
-	            // Cambiamos estado del cliente
-	            conectado = false;
-	            textoInvisible.setText("Desconectado");
-	            actualizarEstadoBotones(false);
 
-	            // Detenemos hilo de lectura
-	            if (threadClient != null) {
-	                threadClient.detener();
-	            }
+		        if (entrada != null) { entrada.close();}
+		        if (salida != null) {salida.close();}
+		        if (socket != null && !socket.isClosed()) {socket.close();}
 
-	            if (hiloLectura != null && hiloLectura.isAlive()) {
-	                hiloLectura.interrupt();
-	            }
+		        if (hiloLectura != null && hiloLectura.isAlive()) {
+		            hiloLectura.interrupt();
+		        }
 
-	            // Cerramos el socket
-	            try {
-	                if (socket != null && !socket.isClosed()) {
-	                    socket.close();
-	                }
-	            } catch (IOException e) {
-	                JOptionPane.showMessageDialog(this, "Error al cerrar conexión: " + e.getMessage());
-	            }
+		        agregarMensaje("Desconectado del servidor.");
 
-	            agregarMensaje("[Sistema] Desconectado del servidor.");
-	        }
-	    }
+		    } catch (IOException ex) {
+		        JOptionPane.showMessageDialog(this, "Error al desconectar: " + ex.getMessage());
+		    }
+		}
 
-		//Envía un mensaje al servidor, público o privado según selección del usuario.
+
 		private void enviarMensaje() {
 
 	        boolean mensajeValido = true;
 
-	        // Validamos que estemos conectados
+
 	        if (!conectado) {
 	            mensajeValido = false;
 	        }
 
-	        // Validamos que el mensaje no esté vacío
+
 	        String mensaje = paraDos.getText();
 	        if (mensaje.isEmpty()) {
 	            mensajeValido = false;
@@ -316,7 +303,7 @@ public class ClienteView extends JFrame implements ActionListener{
 
 	        if (mensajeValido) {
 	            try {
-	                // Si el mensaje es privado, añadimos destinatario
+
 	                if (privadoBoton.isSelected()) {
 	                    String destinatario = paraUno.getText();
 	                    if (!destinatario.isEmpty()) {
@@ -324,7 +311,7 @@ public class ClienteView extends JFrame implements ActionListener{
 	                        agregarMensaje("Yo (privado a " + destinatario + "): " + mensaje);
 	                    }
 	                } else {
-	                    // Mensaje público
+
 	                    salida.writeObject("PUBLICO|" + usuario.getText() + "|" + mensaje);
 	                    agregarMensaje("Yo (público): " + mensaje);
 	                }
@@ -353,14 +340,12 @@ public class ClienteView extends JFrame implements ActionListener{
 	        }
 	    }
 
-	    //Añade texto al editorPane sin borrar lo anterior.
 	    private void agregarMensaje(String mensaje) {
 	        SwingUtilities.invokeLater(() -> {
 	            editorPane.setText(editorPane.getText() + mensaje + "\n");
 	        });
 	    }
 
-	    //Activa o desactiva botones e inputs según el estado de conexión.
 	    private void actualizarEstadoBotones(boolean conectado) {
 	        conectarBoton.setEnabled(!conectado);
 	        desconectarBoton.setEnabled(conectado);

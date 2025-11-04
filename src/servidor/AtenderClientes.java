@@ -1,27 +1,23 @@
 package servidor;
 
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.List;
 
 public class AtenderClientes extends Thread {
-
     private Socket socket;
     private ObjectInputStream entrada;
     private ObjectOutputStream salida;
     private String nombreUsuario;
     private List<AtenderClientes> clientesConectados;
+    private Contador contador;
 
-    // Controla si el hilo debe seguir activo
-    private volatile boolean activo = true;
-
-    public AtenderClientes(Socket socket, List<AtenderClientes> clientesConectados) {
+    public AtenderClientes(Socket socket, List<AtenderClientes> clientesConectados, Contador contador) {
         this.socket = socket;
         this.clientesConectados = clientesConectados;
+        this.contador = contador;
     }
 
     @Override
@@ -30,108 +26,106 @@ public class AtenderClientes extends Thread {
             salida = new ObjectOutputStream(socket.getOutputStream());
             entrada = new ObjectInputStream(socket.getInputStream());
 
-            /* El primer dato que recibimos del cliente es el nombre de usuario.
-               Lo guardamos y añadimos este cliente a la lista de conectados. */
             nombreUsuario = (String) entrada.readObject();
+            
 
-            synchronized (clientesConectados) {
-                clientesConectados.add(this);
-            }
-
+            clientesConectados.add(this);
+            
             System.out.println("Usuario conectado: " + nombreUsuario);
+            System.out.println("Total de usuarios: " + contador.getClientesConectados());
+            
 
-            // Avisamos a todos los usuarios que un nuevo cliente se ha unido
-            enviarATodos("PUBLICO|Servidor|El usuario " + nombreUsuario + " se ha unido al chat");
+            enviarMensajeATodos("PUBLICO|Servidor|El usuario " + nombreUsuario + " se ha unido al chat");
+            enviarMensajeATodos("PUBLICO|Servidor|Usuarios Conectados: " + contador.getClientesConectados());
 
-            // Bucle principal de escucha de mensajes
-            while (activo) {
+
+            while (true) {
                 Object mensajeRecibido = entrada.readObject();
-                String msg = mensajeRecibido.toString();
+                String mensaje = mensajeRecibido.toString();
 
-                /* Según el prefijo del mensaje, decidimos si es salir, público o privado.
-                   No usamos "break"; el boolean activo controla la continuidad del bucle. */
-                if (msg.equals("/salir")) {
-                    activo = false;
-                } else if (msg.startsWith("PUBLICO|")) {
-                    enviarATodos(msg);
-                } else if (msg.startsWith("PRIVADO|")) {
-                    enviarPrivado(msg);
+
+                if (mensaje.equals("/salir")) {
+                    break;
+                }
+
+                else if (mensaje.startsWith("PUBLICO|")) {
+                    enviarMensajeATodos(mensaje);
+                }
+
+                else if (mensaje.startsWith("PRIVADO|")) {
+                    enviarMensajePrivado(mensaje);
                 }
             }
 
-        } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Cliente desconectado inesperadamente: " + nombreUsuario);
+        } catch (Exception e) {
+            System.out.println("Error con el usuario " + nombreUsuario + ": " + e.getMessage());
         } finally {
-            desconectar();
+
+            desconectarCliente();
         }
     }
 
-    /**
-     * Envía un mensaje a todos los clientes conectados.
-     * Se recorre la lista sincronizada para evitar problemas de concurrencia.
-     */
-    private void enviarATodos(String msg) {
-        synchronized (clientesConectados) {
-            for (AtenderClientes cliente : clientesConectados) {
-                try {
-                    cliente.salida.writeObject(msg);
-                    cliente.salida.flush();
-                } catch (IOException e) {
-                    System.out.println("Error al enviar mensaje a " + cliente.nombreUsuario);
-                }
+
+    private void enviarMensajeATodos(String mensaje) {
+        for (AtenderClientes cliente : clientesConectados) {
+            try {
+                cliente.salida.writeObject(mensaje);
+                cliente.salida.flush();
+            } catch (IOException e) {
+                System.out.println("No se pudo enviar mensaje a " + cliente.nombreUsuario);
             }
         }
     }
 
-    /**
-     * Envía un mensaje privado a un usuario concreto.
-     * El formato esperado es: PRIVADO|emisor|destinatario|contenido
-     */
-    private void enviarPrivado(String msg) {
-        String[] partes = msg.split("\\|", 4);
+
+    private void enviarMensajePrivado(String mensaje) {
+
+        String[] partes = mensaje.split("\\|");
         if (partes.length < 4) return;
 
         String emisor = partes[1];
         String destinatario = partes[2];
-        String contenido = partes[3];
+        String texto = partes[3];
 
-        synchronized (clientesConectados) {
-            for (AtenderClientes cliente : clientesConectados) {
-                if (cliente.nombreUsuario.equals(destinatario)) {
-                    try {
-                        cliente.salida.writeObject("PRIVADO|" + emisor + "|" + contenido);
-                        cliente.salida.flush();
-                        System.out.println("Mensaje privado de " + emisor + " a " + destinatario);
-                    } catch (IOException e) {
-                        System.out.println("Error enviando privado a " + destinatario);
-                    }
+
+        for (AtenderClientes cliente : clientesConectados) {
+            if (cliente.nombreUsuario.equals(destinatario)) {
+                try {
+
+                    cliente.salida.writeObject("PRIVADO|" + emisor + "|" + texto);
+                    cliente.salida.flush();
+                    System.out.println("Mensaje privado de " + emisor + " a " + destinatario);
+                    break;
+                } catch (IOException e) {
+                    System.out.println("Error enviando mensaje privado a " + destinatario);
                 }
             }
         }
     }
 
-    /**
-     * Elimina al cliente de la lista y cierra conexión.
-     * También informa al resto de usuarios que se ha desconectado.
-     */
-    private void desconectar() {
+
+    private void desconectarCliente() {
         try {
-            activo = false;
 
-            synchronized (clientesConectados) {
-                clientesConectados.remove(this);
-            }
+            clientesConectados.remove(this);
+            
 
-            enviarATodos("PUBLICO|Servidor|El usuario " + nombreUsuario + " se ha desconectado");
+            contador.desconectarCliente();
+            
 
-            if (socket != null && !socket.isClosed()) {
-                socket.close();
-            }
+            enviarMensajeATodos("PUBLICO|Servidor|El usuario " + nombreUsuario + " se ha desconectado");
+            enviarMensajeATodos("PUBLICO|Servidor|Usuarios Conectados: " + contador.getClientesConectados());
+            
 
+            if (entrada != null) entrada.close();
+            if (salida != null) salida.close();
+            if (socket != null) socket.close();
+            
             System.out.println("Usuario desconectado: " + nombreUsuario);
+            System.out.println("Usuarios restantes: " + contador.getClientesConectados());
 
         } catch (IOException e) {
-            System.out.println("Error al desconectar cliente: " + e.getMessage());
+            System.out.println("Error al desconectar a " + nombreUsuario);
         }
     }
 }
